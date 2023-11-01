@@ -1,0 +1,18 @@
+{
+   "users": [{"isOnl": false, 
+    "username": "quynh", 
+    "password": "123", 
+    "files": [["C:/Users/minhp/Quynh/myHeart", "love.jpg"],
+     ["C:/Users/minhp/Quynh", "Heloo.txt"]], 
+ "addrServer": null
+    },
+    {"isOnl": false, 
+    "username": "minh", 
+    "password": "123", 
+    "files": [["C:/Users/minhp/minh", "lab02.docx"],
+     ["C:/Users/minhp/minh", "BTL_MMT.pdf"]], 
+ "addrServer": null
+    }
+    
+]
+}
