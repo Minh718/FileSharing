@@ -1,14 +1,14 @@
 import socket
 import threading
 import json
-avalFiles = set()
+avalFiles = []
 f = open('users.json')
 data = json.load(f)
 clients = data["users"]
 
 for client in clients:
     for file in client["files"]:
-        avalFiles.add(file[1])
+        avalFiles.append(file[1])
 f.close()
 def handle_client(client_socket, addr):
     message = client_socket.recv(1024).decode()
@@ -42,31 +42,39 @@ def handle_client(client_socket, addr):
         password = data["password"]
         for client in clients:
             if client["username"] == username and client["password"] == password:
-                client_socket.send("success".encode())
-                message = json.loads(client_socket.recv(1024).decode())
-                addrServer = tuple(message["addrServer"])
-                username = message["username"]
-                for client in clients:
-                    if username == client["username"]:
-                        client["isOnl"] = True
-                        client["addrServer"] = addrServer
-                        data = json.dumps({
-                        "command": "success",
-                        "files": client["files"],
-                        "avalFiles": list(avalFiles)
-                        }).encode()
-                        client_socket.send(data)
-                        break
-                print(clients)
-                break
+                if client["role"] == "admin":
+                    client_socket.send("admin".encode())
+                    listUsers = [(user["isOnl"], user["username"]) for user in clients if user["role"] == "user"]
+                    print(listUsers)
+                    data = json.dumps(listUsers).encode()
+                    client_socket.send(data)
+                    break
+                else:
+                    client_socket.send("user".encode())
+                    message = json.loads(client_socket.recv(1024).decode())
+                    addrServer = tuple(message["addrServer"])
+                    username = message["username"]
+                    for client in clients:
+                        if username == client["username"]:
+                            client["isOnl"] = True
+                            client["addrServer"] = addrServer
+                            data = json.dumps({
+                            "command": "success",
+                            "files": client["files"],
+                            "avalFiles": list(set(avalFiles))
+                            }).encode()
+                            client_socket.send(data)
+                            break
+                    print(clients)
+                    break
     elif(command=="publishFile"):
         username = data["username"]
         lname = data["lname"]
         fname = data["fname"]
         for client in clients:
             if client["username"] == username:
-                client["files"].append((lname, fname))
-                avalFiles.add(fname)
+                client["files"].append([lname, fname])
+                avalFiles.append(fname)
                 break
     elif(command=="logout"):
         username = data["username"]
@@ -81,7 +89,7 @@ def handle_client(client_socket, addr):
         username= data["username"]
         usersHaveFile = []
         for client in clients:
-            if client["username"] != username:
+            if client["username"] != username and client["isOnl"] == True:
                 for file in client["files"]:
                     if file[1] == fname:
                         usersHaveFile.append((client["username"], client["addrServer"], file))
@@ -91,6 +99,14 @@ def handle_client(client_socket, addr):
                 "addrUsers": usersHaveFile,
                 }).encode()
         client_socket.send(data)
+    elif(command=="deleteFile"):
+        username = data["username"]
+        lname = data["lname"]
+        fname = data["fname"]
+        for client in clients:
+            if client["username"] == username:
+                avalFiles.remove(fname)
+                client["files"].remove([lname, fname])
     client_socket.close()
     return
 

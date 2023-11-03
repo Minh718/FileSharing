@@ -1,5 +1,6 @@
 {
-   "users": [{"isOnl": false, 
+   "users": [{"isOnl": false,
+   "role" : "user",
     "username": "quynh", 
     "password": "123", 
     "files": [["C:/Users/minhp/Quynh/myHeart", "love.jpg"],
@@ -7,10 +8,18 @@
  "addrServer": null
     },
     {"isOnl": false, 
+    "role" : "user",
     "username": "minh", 
     "password": "123", 
     "files": [["C:/Users/minhp/minh", "lab02.docx"],
      ["C:/Users/minhp/minh", "BTL_MMT.pdf"]], 
+ "addrServer": null
+    },
+    {"isOnl": false, 
+    "role" : "admin",
+    "username": "admin", 
+    "password": "admin", 
+    "files": [], 
  "addrServer": null
     }
     

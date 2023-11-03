@@ -12,7 +12,7 @@ hostname = socket.gethostname()
 ipLocal = socket.gethostbyname(hostname + '.local')
 files = []
 addrUsers=[]
-
+users = []
 def sendLogOut():
     global peerServer
     global name
@@ -78,20 +78,18 @@ def handle_peer(peerClient):
         file_size = os.path.getsize(file_path)
         print(file_size)
         isSend = 0
-        f = open(file_path, 'r')
-    
-        l = f.read(3900)
+        f = open(file_path, 'rb')
+        l = f.read(2048)
+        isSend += 2048
+        percent = math.floor((isSend/file_size)*100)
         while l:
-            print("oke")
-            isSend += 3900
-            percent = math.floor((isSend/file_size)*100)
-            data = json.dumps({
-            "data": l,
-            "percent": percent
-            }).encode()
+            peerClient.send(l)
+            data =str(percent).encode()
             peerClient.send(data)
-            l = f.read(3900)
             peerClient.recv(1024).decode()
+            l = f.read(2048)
+            isSend += 2048
+            percent = math.floor((isSend/file_size)*100)
         f.close()
         peerClient.shutdown(socket.SHUT_WR)
     peerClient.close()
@@ -113,6 +111,13 @@ def sendLogin(username, password):
     message = clientSocket.recv(1024).decode()
     if not message:
         return message
+    elif message == "admin":
+        users = json.loads(clientSocket.recv(1024).decode())
+        clientSocket.close()
+        return {
+            "role": "admin",
+            "data": users
+        }
     else:
         peerServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         peerServer.bind((ipLocal, 0))
@@ -132,7 +137,10 @@ def sendLogin(username, password):
         files = message["files"]
         avalFiles = message["avalFiles"]
         clientSocket.close()
-        return (username, files, avalFiles)
+        return {
+        "role": "user",
+        "data": (username, files, avalFiles)
+        }
 def sendPublishFile(lname, fname):
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     clientSocket.connect((serverName, serverPort))
@@ -147,7 +155,7 @@ def sendPublishFile(lname, fname):
     "fname": fname
     }}).encode()
     clientSocket.send(data)
-    files.append((lname, fname))
+    files.append([lname, fname])
     clientSocket.close()
     return True
 
@@ -169,19 +177,32 @@ def procRecvFile(addrUser,path_save, percent_download):
         "lname": lname,
         "fname": fname}).encode()
         clientPeer.send(data)
-        f = open(path_save+'/'+fname, 'w')
+        f = open(path_save+'/'+fname, 'wb')
         print(path_save+'/'+fname)
-        mess = clientPeer.recv(4069).decode()
-        while mess:
-            mess = json.loads(mess)
-            percent = mess["percent"]
-            print(percent)
-            data = mess["data"]
-            f.write(data)
+        l = clientPeer.recv(2048)
+        percent = clientPeer.recv(1024).decode()
+        while l:
+            f.write(l)
             percent_download.config(text=f"Đã tải xuống được {percent}%")
-            # time.sleep(0.2)
             clientPeer.send("success".encode())
-            mess = clientPeer.recv(4069).decode()
+            l = clientPeer.recv(2048)
+            percent = clientPeer.recv(1024).decode()
         percent_download.config(text="Đã tải xuống thành công")
         f.close()
         clientPeer.close()
+def sendDeleteFilePublish(delFile):
+    print(delFile)
+    print(sendDeleteFilePublish)
+    files.remove(delFile)
+    clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    clientSocket.connect((serverName, serverPort))
+    data = json.dumps({
+        "command": "deleteFile",
+        "data": {
+        "username": name,
+        "lname": delFile[0],
+        "fname": delFile[1]
+        }}).encode()
+    clientSocket.send(data)
+    return files
+    
