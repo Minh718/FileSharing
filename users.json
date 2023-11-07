@@ -1,18 +1,16 @@
 {
    "users": [{"isOnl": false,
    "role" : "user",
-    "username": "quynh", 
+    "username": "user1", 
     "password": "123", 
-    "files": [["C:/Users/minhp/Quynh/myHeart", "love.jpg"],
-     ["C:/Users/minhp/Quynh", "Heloo.txt"]], 
+    "files": [], 
  "addrServer": null
     },
     {"isOnl": false, 
     "role" : "user",
-    "username": "minh", 
+    "username": "user2", 
     "password": "123", 
-    "files": [["C:/Users/minhp/minh", "lab02.docx"],
-     ["C:/Users/minhp/minh", "BTL_MMT.pdf"]], 
+    "files": [], 
  "addrServer": null
     },
     {"isOnl": false, 

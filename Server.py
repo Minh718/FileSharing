@@ -11,16 +11,8 @@ for client in clients:
         avalFiles.append(file[1])
 f.close()
 def handle_client(client_socket, addr):
-    message = client_socket.recv(1024).decode()
-    print(message)
-    if not message:
-        for client in clients:
-            if addr == client["addrClient"]:
-                client['isOnl'] = False
-                client['addrClient'] = None
-                client['addrServer'] = None
-                print(client)
     global avalFiles
+    message = client_socket.recv(1024).decode()
     message = json.loads(message)
     command = message["command"]
     data = message["data"]
@@ -34,9 +26,23 @@ def handle_client(client_socket, addr):
                 isSuccess = False
                 break
         if isSuccess:
-            clients.append({"isOnl": False, "username": username, "password": password, "files": [],"addrClient": addr, "addrServer": None})
-            print(clients)
-            client_socket.send("success".encode())
+            clients.append({"isOnl": False,"role": "user", "username": username, "password": password, "files": [], "addrServer": None})
+    elif(command == "ping"):
+        username = data["username"]
+        for client in clients:
+            if client["username"] == username and client["role"] == "user":
+                if client['isOnl'] is True:
+                    client_socket.send(f"Người dùng hiện tại đang online".encode())
+                else:
+                    client_socket.send(f"Người dùng hiện tại đang offline".encode())
+                break
+    elif(command == "discover"):
+        username = data["username"]
+        for client in clients:
+            if client["username"] == username and client["role"] == "user":
+                data = [file[1] for file in client["files"]]
+                client_socket.send(json.dumps(data).encode())
+                break
     elif(command=="login"):
         username = data["username"]
         password = data["password"]
@@ -44,8 +50,7 @@ def handle_client(client_socket, addr):
             if client["username"] == username and client["password"] == password:
                 if client["role"] == "admin":
                     client_socket.send("admin".encode())
-                    listUsers = [(user["isOnl"], user["username"]) for user in clients if user["role"] == "user"]
-                    print(listUsers)
+                    listUsers = [(user["isOnl"], user["username"], user["files"]) for user in clients if user["role"] == "user"]
                     data = json.dumps(listUsers).encode()
                     client_socket.send(data)
                     break
@@ -65,7 +70,6 @@ def handle_client(client_socket, addr):
                             }).encode()
                             client_socket.send(data)
                             break
-                    print(clients)
                     break
     elif(command=="publishFile"):
         username = data["username"]
@@ -82,7 +86,6 @@ def handle_client(client_socket, addr):
             if username == client["username"]:
                 client['isOnl'] = False
                 client['addrServer'] = None
-                print(clients)
                 break
     elif(command=="fetchFile"):
         fname = data["fname"]
@@ -113,9 +116,11 @@ def handle_client(client_socket, addr):
 # Server initialization
 def main():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(('192.168.56.1', 8888))
+    hostname = socket.gethostname()
+    ipLocal = socket.gethostbyname(hostname + '.local')
+    server.bind((ipLocal, 8888))
     server.listen(5)
-    print("Server listening on port 8888")
+    print(f"Server listening on port 8888 at ip is {ipLocal}")
 
     while True:
         client_socket, addr = server.accept()

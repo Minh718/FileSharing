@@ -1,18 +1,39 @@
+import json
+import socket
+import threading
 import tkinter as tk
 import tkinter.font as tkFont
-from tkinter import ttk
-import socket
-import json
+from tkinter import OptionMenu, StringVar, filedialog, messagebox, ttk
+import sys
 import funcClient
-from tkinter import messagebox
-from tkinter import filedialog, StringVar, OptionMenu
-# def show_home_page():
-#     flogin.pack_forget()
-#     fregister.pack_forget()
-#     window.geometry("650x600")
-#     pageHome.pack()
-#     rightListUsers.pack_forget()
-#     rightListFiles.pack()
+
+args = sys.argv
+
+def is_valid_ip(ip):
+    try:
+        socket.inet_pton(socket.AF_INET, ip)
+        return True  # Valid IPv4 address
+    except socket.error:
+        pass
+
+    try:
+        socket.inet_pton(socket.AF_INET6, ip)
+        return True  # Valid IPv6 address
+    except socket.error:
+        pass
+
+    return False
+if len(args) == 2:
+    if is_valid_ip(args[1]):
+        funcClient.setIpServer(args[1])
+    else:
+        print(f"{args[1]} không phải là địa chỉ ip hợp lệ.")
+else: 
+    print("ex: python3 Client.py 192.168.52.13")
+
+isLogin = False
+role = None
+
 def show_frame(frame):
     # Ẩn tất cả các khung
     flogin.pack_forget()
@@ -24,6 +45,7 @@ def show_frame(frame):
 
 def switch_to_flogin():
     fregister_error_username.config(text="")
+    window.title("Login")
     show_frame(flogin)
 def deleteFilePublish(file): 
     files = funcClient.sendDeleteFilePublish(file)
@@ -40,47 +62,66 @@ def showPublishFiles(files):
     tk.Label(leftpagehomeM, text="Địa chỉ:").pack()
     tk.Label(leftpagehomeR, text="Action:").pack()
     for file in files:
-        tk.Label(leftpagehomeL, text=file[1], pady=5).pack()
-        tk.Label(leftpagehomeM, text=file[0],  wraplength=230, padx=10, pady=5).pack()
+        tk.Label(leftpagehomeL, text=file[1], pady=5, wraplength=150).pack()
+        tk.Label(leftpagehomeM, text=file[0],  wraplength=150, padx=10, pady=5).pack()
         tk.Button(leftpagehomeR, text="Xóa", command=lambda fl=file: deleteFilePublish(fl)).pack(pady=5)
 def switch_to_fregister():
     error_login.config(text="")
+    window.title("Register")
     show_frame(fregister)
 def switch_to_home_page():
     rightListUsers.pack_forget()
     rightListFiles.pack()
-    window.geometry("650x600")
+    error_publish_file.config(text="")
+    window.title("Home Page")
+    window.geometry("700x600")
     show_frame(pageHome)
 def switch_to_admin_page():
+    window.title("Admin Page")
+    window.geometry("450x400")
     show_frame(pageAdmin)
     
     
     show_frame(pageAdmin)
-def register():
-    username = fregister_username_entry.get()
-    password = fregister_password_entry.get()
-    repassword = fregister_repassword_entry.get()
+def register(username= None, password = None, repassword = None):
+    if username == None and password == None and repassword == None:
+        username = fregister_username_entry.get()
+        password = fregister_password_entry.get()
+        repassword = fregister_repassword_entry.get()
     if len(username) != 0 and len(password) != 0:
         if password == repassword:
             message = funcClient.sendRegister(username, password)
-            if(message == "success"):
+            if(message is True):
+                print("Đăng ký thành công !!!")
                 show_frame(flogin)
             else:
+                print("Tên đăng nhập đã được sử dụng !!!")
                 fregister_error_username.config(text="Tên đăng nhập đã được sử dụng")
-        else: fregister_error_username.config(text="Mật khẩu nhập lại không trùng khớp")
+        else:   
+            print("Mật khẩu nhập lại không trùng khớp !!!")
+            fregister_error_username.config(text="Mật khẩu nhập lại không trùng khớp")
         fregister_username_entry.delete(0, tk.END)
         fregister_password_entry.delete(0, tk.END)
         fregister_repassword_entry.delete(0, tk.END)
         fregister_username_entry.focus()
 def show_admin_page(): return
-def login():
-    username = flogin_username_entry.get()
-    password = flogin_password_entry.get()
+def listFilesToString(files):
+    return ", ".join(list(map(lambda file: file[1], files)))
+    
+def login(username= None, password = None):
+    global isLogin
+    global role
+    if username is None and password is None:
+        username = flogin_username_entry.get()
+        password = flogin_password_entry.get()
     if len(username) != 0 and len(password) != 0:
         message = funcClient.sendLogin(username, password)
         if not message:
+            print("Tài khoản hoặc mật khẩu không đúng")
             error_login.config(text="Tài khoản hoặc mật khẩu không đúng", fg="red")
         else:
+            print("Đăng nhập thành công !!")
+            isLogin = True
             role = message["role"]
             data = message["data"]
             if role == "admin":
@@ -88,11 +129,10 @@ def login():
                 for user in users:
                     tk.Label(pageAdminL, text=user[1], pady=5).pack()
                     if user[0] == True:
-                        tk.Label(pageAdminM, text="online",  wraplength=230, padx=10, pady=5).pack()
+                        tk.Label(pageAdminM, text="online",   padx=10, pady=5).pack()
                     else:
-                        tk.Label(pageAdminM, text="ofline",  wraplength=230, padx=10, pady=5).pack()
-                        
-                    tk.Button(pageAdminR, text="Discover files", command=lambda username=user[1]: deleteFilePublish(username)).pack(pady=5)
+                        tk.Label(pageAdminM, text="ofline", padx=10, pady=5).pack()
+                    tk.Label(pageAdminR, text=listFilesToString(user[2]), wraplength=250).pack(pady=5)
                 switch_to_admin_page()
             else:
                 username = data[0]
@@ -119,18 +159,23 @@ def select_directory_save():
     if directory_path_save:
         rightpagehome_address_save_label.config(text=f"Vị trí lưu file tại: {directory_path_save}", wraplength=280, justify="left")
      
-def publishFile ():
+def publishFile (namefile = None, directory = None):
     global directory_path
-    namefile = leftpagehome_namefile_entry.get()
+    if namefile == None and directory == None:
+        namefile = leftpagehome_namefile_entry.get()
+    else:
+        directory_path = directory
     if len(namefile) != 0:
         if len(directory_path) != 0:
             message = funcClient.sendPublishFile(directory_path,namefile)
             if type(message) == str:
                 print("errror")
             else:
-                tk.Label(leftpagehomeL, text=namefile, pady=5).pack()
-                tk.Label(leftpagehomeM, text=directory_path,  wraplength=380, padx=10, pady=5).pack()
+                tk.Label(leftpagehomeL, text=namefile, pady=5, wraplength=150).pack()
+                tk.Label(leftpagehomeM, text=directory_path,  wraplength=150, padx=10, pady=5).pack()
                 tk.Button(leftpagehomeR, text="Xóa", command=lambda x=directory_path, y = namefile: deleteFilePublish([x, y])).pack(pady=5)
+                error_publish_file.config(text="File đã được publish thành công", fg="green")
+                print("File đã được publish thành công !!!")
                 directory_path=""
                 leftpagehome_namefile_entry.delete(0, tk.END)
                 leftpagehome_address_label.config(text=f"Vị trí file tại:")    
@@ -139,9 +184,10 @@ def publishFile ():
     
     
     return
-def get_user_files ():
+def get_user_files (namefile = None):
     global optionList
-    namefile = rightpagehome_namefile_save_entry.get()
+    if namefile == None:
+        namefile = rightpagehome_namefile_save_entry.get()
     if len(namefile) != 0:
         users = funcClient.sendGetUsersFile(namefile)
         rightpagehome_users_have_file.config( text=f"Danh sách người dùng hiện online và có file {namefile}")
@@ -153,11 +199,54 @@ def get_user_files ():
         rightListUsers.pack()
         rightpagehome_namefile_save_entry.delete(0, tk.END)
     return
-def logOut(): 
+def pingUser(username):
+    return funcClient.sendPingUser(username)
+def discoverFiles(username):
+    return funcClient.sendDiscoverFiles(username)
+    
+def logOut():
+    global isLogin
+    global role
+    role = None
+    isLogin = False 
+    print("Logout Thành công !!!")
     funcClient.sendLogOut()
     switch_to_flogin()
     window.geometry("400x350")
+def terminal():
+    while True:
+        print("Nhập command:", end=" ")
+        command = input()
+        arr = command.split()
+        if isLogin == False:
+            if arr[0] == "login" and len(arr) == 3:
+                login(arr[1], arr[2])
+            elif arr[0] == "register" and len(arr) == 4:
+                register(arr[1], arr[2], arr[3])
+            else:
+               print("Command Không chính xác !!!")  
+        else:
+            if role == "admin":
+                if arr[0] == "ping" and len(arr) == 2:
+                    print(pingUser(arr[1]))
+                elif arr[0] == "discover" and len(arr) == 2:
+                    print(discoverFiles(arr[1]))
+                elif arr[0] == "logout" and len(arr) == 1:
+                    logOut()
+                else:
+                   print("Command Không chính xác !!!")  
+            else:
+                if arr[0] == "publish" and len(arr) == 3:
+                    publishFile(arr[1], arr[2])
+                elif arr[0] == "fetch" and len(arr) == 2:
+                    get_user_files(arr[1])
+                elif arr[0] == "logout" and len(arr) == 1:
+                    logOut()
+                else:
+                   print("Command Không chính xác !!!")  
+            
 
+    
 def on_closing():
     funcClient.sendLogOut()
     window.destroy()
@@ -165,7 +254,9 @@ def on_closing():
 #     messagebox.showinfo("Option Menu", "You have selected the option: " + str(optionList.get()))
 def fetchFile():
     funcClient.sendFetchFile(str(optionList.get()),directory_path_save, percent_download)
-    
+
+
+
 directory_path_save="./"
 directory_path=""
 window = tk.Tk()
@@ -242,11 +333,11 @@ fregister_username_label = tk.Label(pageAdmin, text="File sharing with P2P",font
 fregister_username_label.pack()
 tk.Label(pageAdmin, text="Các người dùng đã đăng ký trên server",font=font_style_title, anchor='w').pack(fill='both')
 tk.Label(pageAdminL, text="Tên user:", padx=10).pack()
-tk.Label(pageAdminM, text="Tình trạng:", padx=50).pack()
-tk.Label(pageAdminR, text="Action:", padx=10).pack()
+tk.Label(pageAdminM, text="Tình trạng:", padx=10).pack()
+tk.Label(pageAdminR, text="Những file ngươi dùng publish", padx=10).pack()
 pageAdminL.pack(side="left")
 pageAdminM.pack(side="left")
-pageAdminR.pack(side="right")
+pageAdminR.pack(side="left")
 
 
 leftpagehome_username_label = tk.Label(leftpagehome, text="File sharing with P2P",font=font_style, pady=15, padx=10)
@@ -287,7 +378,7 @@ leftpagehomeR.pack(side="left")
 # leftpagehomeM.grid(row=0, column=1)
 # leftpagehomeR.grid(row=0, column=2)
 
-tk.Label(rightpagehome, text="fetch file", font=font_style_title , anchor='w').pack(fill='both')
+tk.Label(rightpagehome, text="Fetch file", font=font_style_title , anchor='w').pack(fill='both')
 tk.Label(rightpagehome, text="", fg="red").pack()
 rightpagehome_select_save_button = tk.Button(rightpagehome, text="Chọn vị trí lưu file", command=select_directory_save, anchor='w')
 rightpagehome_select_save_button.pack()
@@ -325,6 +416,8 @@ tk.Button(rightListUsers, text="Tải lại trang", padx=10, command=switch_to_h
 
 
 window.protocol("WM_DELETE_WINDOW", on_closing)
-
 show_frame(flogin)
+
+threadTerminal =  threading.Thread(target=terminal)
+threadTerminal.start()
 window.mainloop()
