@@ -207,7 +207,7 @@ def procRecvFile(addrUser,path_save, percent_download):
         while l:
             f.write(l)
             percent_download.config(text=f"Đã tải xuống được {percent}%")
-            clientPeer.send("success".encode())
+            clientPeer.send("".encode())
             l = clientPeer.recv(2048)
             percent = clientPeer.recv(1024).decode()
         percent_download.config(text="Đã tải xuống thành công")
